@@ -5,8 +5,10 @@ from transformers import get_cosine_schedule_with_warmup
 from util.dataset import essay_dataset
 
 import argparse
+import logging
+logging.basicConfig(filename='./train.log', level=logging.INFO)
 
-def main(epoch, save_path, data_file_path, batch_size, accum_iter):
+def main(epoch, save_path, data_file_path, batch_size, accum_iter, lr):
 	model = GPT2LMHeadModel.from_pretrained('skt/kogpt2-base-v2')
 	tokenizer = AutoTokenizer.from_pretrained('skt/kogpt2-base-v2', bos_token='</s>', eos_token='</s>',
 											   unk_token='<unk>', pad_token='<pad>', mask_token='<mask>')
@@ -35,9 +37,9 @@ def main(epoch, save_path, data_file_path, batch_size, accum_iter):
 	print("Read_Dataset ok")
 	data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, pin_memory=True)
 
-	learning_rate = 4e-4
+	learning_rate = lr
 	optimizer = torch.optim.AdamW(optimizer_grouped_parameters, lr=learning_rate)
-	scheduler = get_cosine_schedule_with_warmup(optimizer, num_warmup_steps=2000, num_training_steps=40000)
+	scheduler = get_cosine_schedule_with_warmup(optimizer, num_warmup_steps=3000, num_training_steps=50000)
 
 	avg_loss = (0.0, 0.0)
 
@@ -66,13 +68,14 @@ def main(epoch, save_path, data_file_path, batch_size, accum_iter):
 				optimizer.zero_grad()
 
 			avg_loss = (avg_loss[0] * 0.99 + loss, avg_loss[1] * 0.99 + 1.0)
-			optimizer.step()
+
 			if count % 10 == 0:
 				for param_group in optimizer.param_groups: # get lr from optimizer
 					now_lr = param_group['lr']
-				print('epoch no.{0} train no.{1}  loss = {2:.5f} avg_loss = {3:.5f} lr = {4:.8f}'
+				print('{0} epoch, {1} steps, loss = {2:.5f}, avg_loss = {3:.5f}, lr = {4:.8f}'
 					  . format(epoch, count, loss, avg_loss[0] / avg_loss[1], now_lr))
-
+				logging.info('{0} epoch, {1} steps, loss = {2:.5f}, avg_loss = {3:.5f}, lr = {4:.8f}'
+					  . format(epoch, count, loss, avg_loss[0] / avg_loss[1], now_lr))
 			# Generate text
 			if (count > 0 and count % 100 == 0):
 				model.eval()
@@ -102,12 +105,15 @@ if __name__ == "__main__":
 						help="epoch 를 통해서 학습 범위를 조절합니다.")
 	parser.add_argument('--save_path', type=str, default='./checkpoint/',
 						help="학습 결과를 저장하는 경로입니다.")
-	parser.add_argument('--data_file_path', type=str, default='data/data2/essay.txt',
+	parser.add_argument('--data_file_path', type=str, default='data/train.csv',
 						help="학습할 데이터를 불러오는 경로입니다.")
-	parser.add_argument('--batch_size', type=int, default=32,
+	parser.add_argument('--batch_size', type=int, default=8,
 						help="batch_size 를 지정합니다.")
 	parser.add_argument('--accum_iter', type=int, default=1,
 						help="accumulation step 를 지정합니다.")
+	parser.add_argument('--lr', type=int, default=4e-4,
+						help="accumulation step 를 지정합니다.")
 	args = parser.parse_args()
 
-	main(args.epoch, args.save_path, args.data_file_path, args.batch_size, args.accum_iter)
+	main(epoch=args.epoch, save_path=args.save_path, data_file_path=args.data_file_path,
+		 batch_size=args.batch_size, accum_iter=args.accum_iter, lr=args.lr)
