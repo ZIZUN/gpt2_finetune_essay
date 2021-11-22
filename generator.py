@@ -10,14 +10,11 @@ def loggin_and_print(text):
 def text_generate(model, tokenizer, input, max_len):
 	input_ids = tokenizer.encode(input)
 	gen_ids = model.generate(torch.tensor([input_ids], device='cuda'),
-							 ############## for beam search #############
 							 # num_beams=5,
 							 # no_repeat_ngram_size=2,
-							 ############## for greedy search #############
 							 top_k = 4,
 							 top_p = 0.92,
 							 temperature= 0.6,
-							 ###############################################
 							 max_length=max_len,
 							 repetition_penalty=2.0,
 							 pad_token_id=tokenizer.pad_token_id,
