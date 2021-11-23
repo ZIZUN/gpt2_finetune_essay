@@ -47,7 +47,6 @@ def main(epoch, save_path, data_file_path, batch_size, accum_iter, lr):
 
 	for epoch in range(epoch):
 		for i, data in enumerate(data_loader):
-			optimizer.zero_grad()
 			data = torch.stack(data)
 			data = data.transpose(1,0)
 			data = data.to(device)
